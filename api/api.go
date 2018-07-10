@@ -14,7 +14,7 @@ func InitAPI() {
 	e.Use(middleware.Recover())
 	e.HTTPErrorHandler = errorHandler
 	group := e.Group("/v1.0.0")
-	group.POST("/discovery", discovery)
+	group.GET("/discovery/entities", discovery)
 	e.Logger.Fatal(e.Start(fmt.Sprintf(":%s", os.Getenv("PORT"))))
 }
 

@@ -2,6 +2,21 @@
 
 
 [[projects]]
+  branch = "feature/reprocessamento"
+  name = "github.com/ONSBR/Plataforma-Deployer"
+  packages = [
+    "env",
+    "sdk/apicore"
+  ]
+  revision = "d83ca7d401322df4962c0e6ae27d7436bb9b2a03"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/PMoneda/http"
+  packages = ["."]
+  revision = "07abd5e307d947064debbb4f0e945a2aa4087774"
+
+[[projects]]
   name = "github.com/dgrijalva/jwt-go"
   packages = ["."]
   revision = "06ea1031745cb8b3dab3f6a236daf2b0aa468b7e"
@@ -69,6 +84,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f157f2f3748e00adef9f6bc27d2701bcaf37fe89e9d7506d70612584c1aef97d"
+  inputs-digest = "7adb81bdee7c586f166b6d25025d36000da298ef9f23b1ef91b4ab67b2f7e6b6"
   solver-name = "gps-cdcl"
   solver-version = 1
