@@ -13,8 +13,8 @@ import (
 //EntitiesList maps entities that domain app will save based on process memory
 type EntitiesList []map[string]interface{}
 
-//GetEntitiesByProcessInstance returns all entities that need to saved on domain to complete a process instance
-func GetEntitiesByProcessInstance(systemID, processInstance string) (EntitiesList, error) {
+//GetEntitiesByInstance returns all entities that need to saved on domain to complete a process instance
+func GetEntitiesByInstance(systemID, processInstance string) (EntitiesList, error) {
 	list := make(EntitiesList, 0)
 	domainHost, err := getDomainHost(systemID)
 	if err != nil {

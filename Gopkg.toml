@@ -40,3 +40,7 @@
 [[constraint]]
   branch = "feature/reprocessamento"
   name = "github.com/ONSBR/Plataforma-Deployer"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/lib/pq"

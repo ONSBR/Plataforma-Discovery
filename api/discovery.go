@@ -15,6 +15,7 @@ func discovery(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	c.String(200, string(data))
+	fmt.Println(data)
+	c.JSON(200, []string{})
 	return nil
 }
