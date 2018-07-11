@@ -27,8 +27,10 @@ func GetEntitiesByInstance(systemID, processInstance string) (models.EntitiesLis
 	}
 	errJ := json.Unmarshal(resp.Body, &list)
 	if errJ != nil {
+		log.Error(errJ)
 		return nil, errJ
 	}
+	log.Info("entities from domain: ", len(list))
 	return list, nil
 }
 
@@ -54,8 +56,8 @@ func getDomainHost(systemID string) (string, error) {
 	if len(result) > 0 {
 		obj := result[0]
 		//FIXME remover estas linha
-		obj["host"] = "localhost"
-		obj["port"] = float64(8087)
+		//obj["host"] = "localhost"
+		//obj["port"] = float64(8087)
 		return fmt.Sprintf("http://%s:%d", obj["host"], uint(obj["port"].(float64))), nil
 	}
 	return "", fmt.Errorf("no app found for %s id", systemID)

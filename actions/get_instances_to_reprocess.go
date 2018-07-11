@@ -5,6 +5,7 @@ import (
 
 	"github.com/ONSBR/Plataforma-Discovery/helpers"
 	"github.com/ONSBR/Plataforma-Discovery/models"
+	"github.com/labstack/gommon/log"
 )
 
 //GetInstancesToReprocess returns all instances to reprocess based on systemID and instanceID
@@ -45,6 +46,7 @@ func dispatchWorker(originInstanceID string, entities models.EntitiesList, summa
 			//skip same instance summary
 			continue
 		}
+		log.Info("dispatching summary instance: ", summary.ProcessInstance)
 		go models.RunAnalyticsForInstance(summary.ProcessInstance, entities, result, summary.Entities)
 		stack++
 	}
