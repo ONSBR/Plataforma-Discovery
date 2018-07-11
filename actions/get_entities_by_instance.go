@@ -3,20 +3,19 @@ package actions
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/PMoneda/http"
+	"github.com/labstack/gommon/log"
 
 	"github.com/ONSBR/Plataforma-Deployer/sdk/apicore"
+	"github.com/ONSBR/Plataforma-Discovery/models"
 )
 
-//EntitiesList maps entities that domain app will save based on process memory
-type EntitiesList []map[string]interface{}
-
 //GetEntitiesByInstance returns all entities that need to saved on domain to complete a process instance
-func GetEntitiesByInstance(systemID, processInstance string) (EntitiesList, error) {
-	list := make(EntitiesList, 0)
+func GetEntitiesByInstance(systemID, processInstance string) (models.EntitiesList, error) {
+	list := make(models.EntitiesList, 0)
 	domainHost, err := getDomainHost(systemID)
+	log.Info(domainHost)
 	if err != nil {
 		return nil, err
 	}
@@ -31,21 +30,6 @@ func GetEntitiesByInstance(systemID, processInstance string) (EntitiesList, erro
 		return nil, errJ
 	}
 	return list, nil
-}
-
-//PersistEntitiesByInstance call domain to persist data based on process instance
-func PersistEntitiesByInstance(systemID, instanceID string) error {
-	domainHost, err := getDomainHost(systemID)
-	if err != nil {
-		return err
-	}
-	url := fmt.Sprintf("%s/instance/%s/persist", domainHost, instanceID)
-	if resp, err := http.Post(url, nil); err != nil {
-		return err
-	} else if !strings.Contains(string(resp.Body), "ok") {
-		return fmt.Errorf("%s", resp)
-	}
-	return nil
 }
 
 func getDomainHost(systemID string) (string, error) {
@@ -69,6 +53,9 @@ func getDomainHost(systemID string) (string, error) {
 	}
 	if len(result) > 0 {
 		obj := result[0]
+		//FIXME remover estas linha
+		obj["host"] = "localhost"
+		obj["port"] = float64(8087)
 		return fmt.Sprintf("http://%s:%d", obj["host"], uint(obj["port"].(float64))), nil
 	}
 	return "", fmt.Errorf("no app found for %s id", systemID)
