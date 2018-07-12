@@ -2,10 +2,11 @@ package actions
 
 import (
 	"strings"
+	"time"
 
 	"github.com/ONSBR/Plataforma-Discovery/helpers"
 	"github.com/ONSBR/Plataforma-Discovery/models"
-	"github.com/labstack/gommon/log"
+	"github.com/ONSBR/Plataforma-Discovery/util"
 )
 
 //GetInstancesToReprocess returns all instances to reprocess based on systemID and instanceID
@@ -15,6 +16,7 @@ func GetInstancesToReprocess(systemID, instanceID string) (*models.AnalyticsResu
 	if err != nil {
 		return nil, err
 	}
+
 	list, err := run(systemID, instanceID, entities)
 	if err != nil {
 		return nil, err
@@ -24,14 +26,23 @@ func GetInstancesToReprocess(systemID, instanceID string) (*models.AnalyticsResu
 
 func run(systemID, originInstanceID string, entities models.EntitiesList) (*models.AnalyticsResult, error) {
 	analytics := models.NewEntitiesAnalytics()
+	timestamp := util.Timestamp(time.Now())
 	for _, entity := range entities {
 		typ, err := helpers.ExtractFieldFromEntity(entity, "type")
 		if err != nil {
 			return nil, err
 		}
+		tmp, err := helpers.ExtractModifiedTimestamp(entity)
+		if err != nil {
+			return nil, err
+		}
+		if tmp <= timestamp {
+			timestamp = tmp
+		}
 		analytics.AddEntity(typ)
 	}
-	summaries, err := GetSummaryBySystem(systemID, strings.Join(analytics.ListEntitiesTypes(), ","))
+
+	summaries, err := GetSummaryBySystem(systemID, strings.Join(analytics.ListEntitiesTypes(), ","), timestamp)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +57,6 @@ func dispatchWorker(originInstanceID string, entities models.EntitiesList, summa
 			//skip same instance summary
 			continue
 		}
-		log.Info("dispatching summary instance: ", summary.ProcessInstance)
 		go models.RunAnalyticsForInstance(summary.ProcessInstance, entities, result, summary.Entities)
 		stack++
 	}

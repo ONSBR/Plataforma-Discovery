@@ -30,7 +30,6 @@ func Query(binder func(Scan), query string, args ...interface{}) error {
 	defer dataConn.Close()
 	dataConn.SetMaxOpenConns(10)
 	dataConn.SetMaxIdleConns(10)
-	log.Info("Executing query: ", query)
 	result, err := dataConn.Query(query, args...)
 	if err != nil {
 		log.Error(err)

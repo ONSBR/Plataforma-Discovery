@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/ONSBR/Plataforma-Discovery/db"
-	"github.com/labstack/gommon/log"
 
 	"github.com/ONSBR/Plataforma-Discovery/helpers"
 	"github.com/ONSBR/Plataforma-Discovery/util"
@@ -102,7 +101,6 @@ func (analytic *EntitiesAnalytics) MapEntityToQuery(entitiesSummary []*EntitySum
 					from %s
 					where from_id=$2 and %s)
 					`, en.EntityName, query, en.EntityName, query)
-				log.Info("append query to analytics")
 				analytic.queryMap[en.EntityName] = append(analytic.queryMap[en.EntityName], query)
 			}
 		}
@@ -115,14 +113,12 @@ func (analytic *EntitiesAnalytics) SearchOnPostgres(obj map[string]interface{}) 
 	queries := analytic.queryMap[t]
 	set := util.NewStringSet()
 	for _, query := range queries {
-		log.Info("searching o postgres")
 		db.Query(func(scan db.Scan) {
 			var row PostgresRowData
 			scan(&row.RID, &row.Branch)
 			set.Add(row.Branch)
 		}, query, rid, rid)
 	}
-	log.Info(set.List())
 	return set
 }
 
@@ -137,7 +133,6 @@ func RunAnalyticsForInstance(instanceID string, entities EntitiesList, channel c
 	for _, obj := range entities {
 		set := analytics.SearchOnPostgres(obj)
 		if set.Len() > 0 {
-			log.Info("creating reprocessing units")
 			//registros impactados incluindo em branches impactadas
 			r := AnalyticsResult{Units: []ReprocessingUnit{}}
 			for _, branch := range set.List() {
@@ -147,6 +142,5 @@ func RunAnalyticsForInstance(instanceID string, entities EntitiesList, channel c
 			return
 		}
 	}
-	log.Info("no reprocessing unit generated")
 	channel <- &AnalyticsResult{Units: []ReprocessingUnit{}}
 }

@@ -11,13 +11,13 @@ import (
 )
 
 //GetSummaryBySystem returns all instances query summary from process memory
-func GetSummaryBySystem(systemID, entities string) ([]*models.InstanceSummary, error) {
+func GetSummaryBySystem(systemID, entities string, timestamp int64) ([]*models.InstanceSummary, error) {
 	summary := make([]*models.InstanceSummary, 0)
 	scheme := env.Get("PROCESS_MEMORY_SCHEME", "http")
 	host := env.Get("PROCESS_MEMORY_HOST", "localhost")
 	port := env.Get("PROCESS_MEMORY_PORT", "9091")
 
-	url := fmt.Sprintf("%s://%s:%s/instances/byEntities?branch=master&systemId=%s&entities=%s", scheme, host, port, systemID, entities)
+	url := fmt.Sprintf("%s://%s:%s/instances/byEntities?branch=master&systemId=%s&entities=%s&timestamp=%d", scheme, host, port, systemID, entities, timestamp)
 	resp, err := http.Get(url)
 	if err != nil {
 		log.Error(err)
