@@ -107,13 +107,13 @@ func (analytic *EntitiesAnalytics) MapEntityToQuery(entitiesSummary []*EntitySum
 	}
 }
 
-func (analytic *EntitiesAnalytics) SearchOnPostgres(obj map[string]interface{}) *util.StringSet {
+func (analytic *EntitiesAnalytics) SearchOnPostgres(systemID string, obj map[string]interface{}) *util.StringSet {
 	t, _ := helpers.ExtractFieldFromEntity(obj, "type")
 	rid, _ := helpers.ExtractFieldFromEntity(obj, "rid")
 	queries := analytic.queryMap[t]
 	set := util.NewStringSet()
 	for _, query := range queries {
-		db.Query(func(scan db.Scan) {
+		db.Query(systemID, func(scan db.Scan) {
 			var row PostgresRowData
 			scan(&row.RID, &row.Branch)
 			set.Add(row.Branch)
@@ -127,11 +127,11 @@ func (analytic *EntitiesAnalytics) ListEntitiesTypes() []string {
 	return analytic.entitiesSet.List()
 }
 
-func RunAnalyticsForInstance(instanceID string, entities EntitiesList, channel chan *AnalyticsResult, entitiesSummary []*EntitySummary) {
+func RunAnalyticsForInstance(systemID, instanceID string, entities EntitiesList, channel chan *AnalyticsResult, entitiesSummary []*EntitySummary) {
 	analytics := NewEntitiesAnalytics()
 	analytics.MapEntityToQuery(entitiesSummary)
 	for _, obj := range entities {
-		set := analytics.SearchOnPostgres(obj)
+		set := analytics.SearchOnPostgres(systemID, obj)
 		if set.Len() > 0 {
 			//registros impactados incluindo em branches impactadas
 			r := AnalyticsResult{Units: []ReprocessingUnit{}}

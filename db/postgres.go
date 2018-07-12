@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/ONSBR/Plataforma-Deployer/env"
+	"github.com/ONSBR/Plataforma-Discovery/helpers"
 
 	"github.com/labstack/gommon/log"
 	_ "github.com/lib/pq"
@@ -13,14 +14,18 @@ import (
 const (
 	DB_USER     = "postgres"
 	DB_PASSWORD = "postgres"
-	DB_NAME     = "bankapp"
 )
 
 type Scan func(dest ...interface{}) error
 
-func Query(binder func(Scan), query string, args ...interface{}) error {
+func Query(systemID string, binder func(Scan), query string, args ...interface{}) error {
+	dbName, err := helpers.GetDBName(systemID)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
 	dbinfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		env.Get("POSTGRES_HOST", "localhost"), env.Get("POSTGRES_PORT", "5432"), DB_USER, DB_PASSWORD, DB_NAME)
+		env.Get("POSTGRES_HOST", "localhost"), env.Get("POSTGRES_PORT", "5432"), DB_USER, DB_PASSWORD, dbName)
 
 	dataConn, err := sql.Open("postgres", dbinfo)
 	if err != nil {

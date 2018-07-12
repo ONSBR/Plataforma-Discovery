@@ -57,7 +57,7 @@ func dispatchWorker(originInstanceID string, entities models.EntitiesList, summa
 			//skip same instance summary
 			continue
 		}
-		go models.RunAnalyticsForInstance(summary.ProcessInstance, entities, result, summary.Entities)
+		go models.RunAnalyticsForInstance(summary.SystemID, summary.ProcessInstance, entities, result, summary.Entities)
 		stack++
 	}
 	toReprocess := models.AnalyticsResult{Units: []models.ReprocessingUnit{}}

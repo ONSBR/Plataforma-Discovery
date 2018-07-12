@@ -7,14 +7,14 @@ import (
 	"github.com/PMoneda/http"
 	"github.com/labstack/gommon/log"
 
-	"github.com/ONSBR/Plataforma-Deployer/sdk/apicore"
+	"github.com/ONSBR/Plataforma-Discovery/helpers"
 	"github.com/ONSBR/Plataforma-Discovery/models"
 )
 
 //GetEntitiesByInstance returns all entities that need to saved on domain to complete a process instance
 func GetEntitiesByInstance(systemID, processInstance string) (models.EntitiesList, error) {
 	list := make(models.EntitiesList, 0)
-	domainHost, err := getDomainHost(systemID)
+	domainHost, err := helpers.GetDomainHost(systemID)
 	log.Info(domainHost)
 	if err != nil {
 		return nil, err
@@ -32,33 +32,4 @@ func GetEntitiesByInstance(systemID, processInstance string) (models.EntitiesLis
 	}
 	log.Info("entities from domain: ", len(list))
 	return list, nil
-}
-
-func getDomainHost(systemID string) (string, error) {
-	result := make([]map[string]interface{}, 1)
-	filter := apicore.Filter{
-		Entity: "installedApp",
-		Map:    "core",
-		Name:   "bySystemIdAndType",
-		Params: []apicore.Param{apicore.Param{
-			Key:   "systemId",
-			Value: systemID,
-		}, apicore.Param{
-			Key:   "type",
-			Value: "domain",
-		},
-		},
-	}
-	err := apicore.Query(filter, &result)
-	if err != nil {
-		return "", fmt.Errorf("%s", err.Error())
-	}
-	if len(result) > 0 {
-		obj := result[0]
-		//FIXME remover estas linha
-		obj["host"] = "localhost"
-		obj["port"] = float64(8087)
-		return fmt.Sprintf("http://%s:%d", obj["host"], uint(obj["port"].(float64))), nil
-	}
-	return "", fmt.Errorf("no app found for %s id", systemID)
 }
