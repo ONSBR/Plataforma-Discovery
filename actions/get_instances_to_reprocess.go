@@ -7,6 +7,7 @@ import (
 	"github.com/ONSBR/Plataforma-Discovery/helpers"
 	"github.com/ONSBR/Plataforma-Discovery/models"
 	"github.com/ONSBR/Plataforma-Discovery/util"
+	"github.com/labstack/gommon/log"
 )
 
 //GetInstancesToReprocess returns all instances to reprocess based on systemID and instanceID
@@ -33,16 +34,18 @@ func run(systemID, originInstanceID string, entities models.EntitiesList) (*mode
 			return nil, err
 		}
 		tmp, err := helpers.ExtractModifiedTimestamp(entity)
-		if err != nil {
-			return nil, err
-		}
-		if tmp <= timestamp {
+		if err == nil && tmp <= timestamp {
 			timestamp = tmp
 		}
 		analytics.AddEntity(typ)
 	}
-
-	summaries, err := GetSummaryBySystem(systemID, strings.Join(analytics.ListEntitiesTypes(), ","), timestamp)
+	log.Debug("Minimum timestamp: ", util.ToISOString(util.TimeFromMilliTimestamp(timestamp)))
+	instancesAfter, err := helpers.GetFinalizedInstancesAfter(systemID, originInstanceID, util.TimeFromMilliTimestamp(timestamp))
+	if err != nil {
+		return nil, err
+	}
+	log.Info(instancesAfter)
+	summaries, err := GetSummaryBySystem(systemID, strings.Join(analytics.ListEntitiesTypes(), ","))
 	if err != nil {
 		return nil, err
 	}
