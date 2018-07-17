@@ -36,7 +36,12 @@ type ReprocessingUnit struct {
 type InstanceSummary struct {
 	SystemID        string           `json:"systemId"`
 	ProcessInstance string           `json:"process"`
+	Tag             string           `json:"tag"`
+	Version         string           `json:"version"`
+	ProcessApp      string           `json:"processAppId"`
+	Reprocessable   bool             `json:"reprocessable"`
 	Branch          string           `json:"branch"`
+	IdempotencyKey  string           `json:"idempotencyKey"`
 	Entities        []*EntitySummary `json:"entities"`
 }
 
@@ -53,8 +58,9 @@ type EntityID struct {
 }
 
 type PostgresRowData struct {
-	Branch string
-	RID    string
+	Branch         string
+	RID            string
+	MetaInstanceID string
 }
 
 //NewEntitiesAnalytics creates a new EntitiesAnalytics object
@@ -89,16 +95,7 @@ func (analytic *EntitiesAnalytics) MapEntityToQuery(entitiesSummary []*EntitySum
 			analytic.queryMap[en.EntityName] = make([]string, 0)
 		}
 		if query != "" {
-			query = fmt.Sprintf(`
-				(select rid, branch
-					from %s
-					where rid=$1 and branch=$2 and %s)
-					union
-				(select rid, branch
-				from %s
-				where from_id=$3 and %s)
-				`, en.EntityName, query, en.EntityName, query)
-			log.Info("Query: ", query)
+			query = fmt.Sprintf(`(select rid, branch, meta_instance_id from %s where rid=$1 and %s) union (select rid, branch, meta_instance_id from %s where from_id=$2 and %s)`, en.EntityName, query, en.EntityName, query)
 			analytic.queryMap[en.EntityName] = append(analytic.queryMap[en.EntityName], query)
 		}
 
@@ -108,7 +105,8 @@ func (analytic *EntitiesAnalytics) MapEntityToQuery(entitiesSummary []*EntitySum
 func (analytic *EntitiesAnalytics) SearchOnPostgres(systemID string, obj map[string]interface{}) *util.StringSet {
 	t, _ := helpers.ExtractFieldFromEntity(obj, "type")
 	rid, _ := helpers.ExtractFieldFromEntity(obj, "rid")
-	branch := obj["branch"]
+
+	branch := obj["branch"].(string)
 	queries := analytic.queryMap[t]
 	set := util.NewStringSet()
 	if rid == "" {
@@ -117,9 +115,10 @@ func (analytic *EntitiesAnalytics) SearchOnPostgres(systemID string, obj map[str
 	for _, query := range queries {
 		db.Query(systemID, func(scan db.Scan) {
 			var row PostgresRowData
-			scan(&row.RID, &row.Branch)
-			set.Add(row.Branch)
-		}, query, rid, branch, rid)
+			scan(&row.RID, &row.Branch, &row.MetaInstanceID)
+			set.Add(branch, row)
+		}, query, rid, rid)
+		log.Debug("query: ", query, " rid=", rid)
 	}
 	return set
 }
@@ -140,6 +139,7 @@ func RunAnalyticsForInstance(systemID, instanceID string, entities EntitiesList,
 			for _, branch := range set.List() {
 				r.Units = append(r.Units, ReprocessingUnit{InstanceID: instanceID, Branch: branch})
 			}
+			log.Debug("Total found: ", len(r.Units))
 			channel <- &r
 			return
 		}

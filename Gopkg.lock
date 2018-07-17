@@ -13,8 +13,11 @@
 [[projects]]
   branch = "feature/reprocessamento"
   name = "github.com/ONSBR/Plataforma-EventManager"
-  packages = ["domain"]
-  revision = "420cfac6074d4a02a0bb698be01837eef81ba90e"
+  packages = [
+    "domain",
+    "infra"
+  ]
+  revision = "6e7f22e2ec411babd5cc4a626aefb80cdd4181a8"
 
 [[projects]]
   branch = "master"

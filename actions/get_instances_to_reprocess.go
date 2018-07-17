@@ -61,22 +61,37 @@ func run(systemID, originInstanceID string, entities models.EntitiesList, event 
 	for i, ins := range instancesAfter {
 		instancesStr[i] = ins.ID
 	}
-	summaries, err := GetSummaryBySystem(systemID, strings.Join(analytics.ListEntitiesTypes(), ","), strings.Join(instancesStr, ","))
+	diffInstances := util.NewStringSet()
+	summaries, err := GetSummaryBySystem(systemID, strings.Join(analytics.ListEntitiesTypes(), ","), strings.Join(instancesStr, ","), event.Tag)
 	log.Info(len(summaries))
+	list := make([]*models.InstanceSummary, 0)
+	for _, summary := range summaries {
+		if diffInstances.Exist(summary.IdempotencyKey) {
+			continue
+		}
+		diffInstances.Add(summary.IdempotencyKey)
+		list = append(list, summary)
+	}
 	if err != nil {
 		return nil, err
 	}
-	return dispatchWorker(originInstanceID, entities, summaries, branches), nil
+	return dispatchWorker(originInstanceID, entities, list, branches), nil
 }
 
 func dispatchWorker(originInstanceID string, entities models.EntitiesList, summaries []*models.InstanceSummary, branches *util.StringSet) *models.AnalyticsResult {
 	result := make(chan *models.AnalyticsResult)
 	stack := 0
+	groupedTag := util.NewStringSet()
 	for _, summary := range summaries {
 		if summary.ProcessInstance == originInstanceID {
 			//skip same instance summary
 			continue
 		}
+		if groupedTag.Exist(summary.Tag) {
+			continue
+		}
+		groupedTag.Add(summary.Tag)
+		log.Info(summary.Tag)
 		go models.RunAnalyticsForInstance(summary.SystemID, summary.ProcessInstance, entities, result, summary.Entities)
 		stack++
 	}
@@ -86,6 +101,7 @@ func dispatchWorker(originInstanceID string, entities models.EntitiesList, summa
 		return &models.AnalyticsResult{Units: []models.ReprocessingUnit{}}
 	}
 	set := util.NewStringSet()
+	log.Debug("New branches: ", branches.List())
 	for r := range result {
 		for i := 0; i < len(r.Units); i++ {
 			key := fmt.Sprintf("%s:%s", r.Units[i].InstanceID, r.Units[i].Branch)
@@ -93,10 +109,13 @@ func dispatchWorker(originInstanceID string, entities models.EntitiesList, summa
 				if r.Units[i].Branch == "master" {
 					//Aplica a execução da mesma instancia para os branches que vieram no dataset
 					for _, branch := range branches.List() {
-						set.Add(fmt.Sprintf("%s:%s", r.Units[i].InstanceID, branch), models.ReprocessingUnit{
-							Branch:     branch,
-							InstanceID: r.Units[i].InstanceID,
-						})
+						key = fmt.Sprintf("%s:%s", r.Units[i].InstanceID, branch)
+						if !set.Exist(key) {
+							set.Add(key, models.ReprocessingUnit{
+								Branch:     branch,
+								InstanceID: r.Units[i].InstanceID,
+							})
+						}
 					}
 				}
 				set.Add(key, r.Units[i])

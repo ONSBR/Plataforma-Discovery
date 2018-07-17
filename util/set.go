@@ -58,3 +58,16 @@ func (set *StringSet) List() []string {
 	}
 	return keys
 }
+
+//ListValues return all vallues
+func (set *StringSet) ListValues() interface{} {
+	set.mux.Lock()
+	defer set.mux.Unlock()
+	keys := make([]interface{}, len(set.hashmap))
+	i := 0
+	for k := range set.hashmap {
+		keys[i] = k
+		i++
+	}
+	return keys
+}

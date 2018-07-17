@@ -2,8 +2,6 @@ package domain
 
 import (
 	"strings"
-
-	"github.com/google/uuid"
 )
 
 //TODO maybe will be better put this events on apicore
@@ -69,10 +67,6 @@ func (e *Event) ApplyDefaultFields() {
 	}
 	if e.Scope == "" {
 		e.Scope = "execution"
-	}
-	if e.Tag == "" {
-		uuid, _ := uuid.NewUUID()
-		e.Tag = uuid.String()
 	}
 }
 
