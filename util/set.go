@@ -5,22 +5,27 @@ import (
 )
 
 type StringSet struct {
-	hashmap map[string]bool
+	hashmap map[string]interface{}
 	mux     sync.Mutex
 }
 
 //NewStringSet creates a new Set
 func NewStringSet() *StringSet {
 	set := new(StringSet)
-	set.hashmap = make(map[string]bool)
+	set.hashmap = make(map[string]interface{})
 	return set
 }
 
 //Add new string to the Set
-func (set *StringSet) Add(value string) {
+func (set *StringSet) Add(value string, store ...interface{}) {
 	set.mux.Lock()
 	defer set.mux.Unlock()
-	set.hashmap[value] = true
+	if len(store) == 0 {
+		set.hashmap[value] = true
+	} else {
+		set.hashmap[value] = store[0]
+	}
+
 }
 
 func (set *StringSet) Len() int {
@@ -31,6 +36,14 @@ func (set *StringSet) Len() int {
 func (set *StringSet) Exist(value string) bool {
 	_, exist := set.hashmap[value]
 	return exist
+}
+
+func (set *StringSet) Get(value string) interface{} {
+	obj, exist := set.hashmap[value]
+	if exist {
+		return obj
+	}
+	return nil
 }
 
 //List all values in set

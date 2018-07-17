@@ -2,10 +2,9 @@ package models
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
 
 	"github.com/ONSBR/Plataforma-Discovery/db"
+	"github.com/labstack/gommon/log"
 
 	"github.com/ONSBR/Plataforma-Discovery/helpers"
 	"github.com/ONSBR/Plataforma-Discovery/util"
@@ -73,51 +72,54 @@ func (analytic *EntitiesAnalytics) AddEntity(entity string) {
 	analytic.entitiesSet.Add(entity)
 }
 
+//GetDataSourceChain get datasource chain from entities
+func (analytic *EntitiesAnalytics) GetDataSourceChain(systemID string) ([]*DataSource, error) {
+	deps, err := helpers.GetProcessesWithDependsOn(systemID, analytic.entitiesSet.List())
+	if err != nil {
+		return nil, err
+	}
+	return NewDataSourceChain(deps), nil
+}
+
 func (analytic *EntitiesAnalytics) MapEntityToQuery(entitiesSummary []*EntitySummary) {
 	for _, en := range entitiesSummary {
-		for k, v := range en.Parameters {
-			query := ""
-			switch t := v.(type) {
-			case string:
-				query = strings.Replace(en.Query, ":"+k, fmt.Sprintf("'%s'", t), -1)
-			case float64:
-				query = strings.Replace(en.Query, ":"+k, strconv.FormatFloat(t, 'E', -1, 64), -1)
-			case int64:
-				query = strings.Replace(en.Query, ":"+k, strconv.FormatInt(t, 10), -1)
-			case bool:
-				query = strings.Replace(en.Query, ":"+k, strconv.FormatBool(t), -1)
-			}
-			_, ok := analytic.queryMap[en.EntityName]
-			if !ok {
-				analytic.queryMap[en.EntityName] = make([]string, 0)
-			}
-			if query != "" {
-				query = fmt.Sprintf(`
-					(select rid, branch
-						from %s
-						where rid=$1 and %s)
-						union
-					(select rid, branch
-					from %s
-					where from_id=$2 and %s)
-					`, en.EntityName, query, en.EntityName, query)
-				analytic.queryMap[en.EntityName] = append(analytic.queryMap[en.EntityName], query)
-			}
+		query := helpers.ParseQuery(en.Query, en.Parameters)
+		_, ok := analytic.queryMap[en.EntityName]
+		if !ok {
+			analytic.queryMap[en.EntityName] = make([]string, 0)
 		}
+		if query != "" {
+			query = fmt.Sprintf(`
+				(select rid, branch
+					from %s
+					where rid=$1 and branch=$2 and %s)
+					union
+				(select rid, branch
+				from %s
+				where from_id=$3 and %s)
+				`, en.EntityName, query, en.EntityName, query)
+			log.Info("Query: ", query)
+			analytic.queryMap[en.EntityName] = append(analytic.queryMap[en.EntityName], query)
+		}
+
 	}
 }
 
 func (analytic *EntitiesAnalytics) SearchOnPostgres(systemID string, obj map[string]interface{}) *util.StringSet {
 	t, _ := helpers.ExtractFieldFromEntity(obj, "type")
 	rid, _ := helpers.ExtractFieldFromEntity(obj, "rid")
+	branch := obj["branch"]
 	queries := analytic.queryMap[t]
 	set := util.NewStringSet()
+	if rid == "" {
+		return set
+	}
 	for _, query := range queries {
 		db.Query(systemID, func(scan db.Scan) {
 			var row PostgresRowData
 			scan(&row.RID, &row.Branch)
 			set.Add(row.Branch)
-		}, query, rid, rid)
+		}, query, rid, branch, rid)
 	}
 	return set
 }

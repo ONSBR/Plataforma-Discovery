@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/ONSBR/Plataforma-Discovery/util"
+	"github.com/labstack/gommon/log"
 )
 
 func ExtractFieldFromEntity(entity map[string]interface{}, field string) (string, error) {
@@ -20,8 +21,10 @@ func ExtractFieldFromEntity(entity map[string]interface{}, field string) (string
 				}
 			}
 		}
+	} else {
+		log.Error("_metada not found on entity")
 	}
-	return "", fmt.Errorf("cannot find entity type")
+	return "", fmt.Errorf(fmt.Sprintf("cannot find field %s", field))
 }
 
 func ExtractModifiedTimestamp(entity map[string]interface{}) (int64, error) {

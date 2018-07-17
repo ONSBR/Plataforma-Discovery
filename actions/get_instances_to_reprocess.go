@@ -1,8 +1,13 @@
 package actions
 
 import (
+	"fmt"
 	"strings"
 	"time"
+
+	"github.com/ONSBR/Plataforma-EventManager/domain"
+
+	"github.com/ONSBR/Plataforma-Maestro/sdk/processmemory"
 
 	"github.com/ONSBR/Plataforma-Discovery/helpers"
 	"github.com/ONSBR/Plataforma-Discovery/models"
@@ -17,21 +22,29 @@ func GetInstancesToReprocess(systemID, instanceID string) (*models.AnalyticsResu
 	if err != nil {
 		return nil, err
 	}
-
-	list, err := run(systemID, instanceID, entities)
+	event, err := processmemory.GetEventByInstance(instanceID)
+	if err != nil {
+		return nil, err
+	}
+	list, err := run(systemID, instanceID, entities, event)
 	if err != nil {
 		return nil, err
 	}
 	return list, nil
 }
 
-func run(systemID, originInstanceID string, entities models.EntitiesList) (*models.AnalyticsResult, error) {
+func run(systemID, originInstanceID string, entities models.EntitiesList, event *domain.Event) (*models.AnalyticsResult, error) {
 	analytics := models.NewEntitiesAnalytics()
 	timestamp := util.Timestamp(time.Now())
+	branches := util.NewStringSet()
 	for _, entity := range entities {
 		typ, err := helpers.ExtractFieldFromEntity(entity, "type")
 		if err != nil {
 			return nil, err
+		}
+		branch := entity["branch"].(string)
+		if branch != "master" {
+			branches.Add(branch)
 		}
 		tmp, err := helpers.ExtractModifiedTimestamp(entity)
 		if err == nil && tmp <= timestamp {
@@ -44,15 +57,19 @@ func run(systemID, originInstanceID string, entities models.EntitiesList) (*mode
 	if err != nil {
 		return nil, err
 	}
-	log.Info(instancesAfter)
-	summaries, err := GetSummaryBySystem(systemID, strings.Join(analytics.ListEntitiesTypes(), ","))
+	instancesStr := make([]string, len(instancesAfter))
+	for i, ins := range instancesAfter {
+		instancesStr[i] = ins.ID
+	}
+	summaries, err := GetSummaryBySystem(systemID, strings.Join(analytics.ListEntitiesTypes(), ","), strings.Join(instancesStr, ","))
+	log.Info(len(summaries))
 	if err != nil {
 		return nil, err
 	}
-	return dispatchWorker(originInstanceID, entities, summaries), nil
+	return dispatchWorker(originInstanceID, entities, summaries, branches), nil
 }
 
-func dispatchWorker(originInstanceID string, entities models.EntitiesList, summaries []*models.InstanceSummary) *models.AnalyticsResult {
+func dispatchWorker(originInstanceID string, entities models.EntitiesList, summaries []*models.InstanceSummary, branches *util.StringSet) *models.AnalyticsResult {
 	result := make(chan *models.AnalyticsResult)
 	stack := 0
 	for _, summary := range summaries {
@@ -63,18 +80,37 @@ func dispatchWorker(originInstanceID string, entities models.EntitiesList, summa
 		go models.RunAnalyticsForInstance(summary.SystemID, summary.ProcessInstance, entities, result, summary.Entities)
 		stack++
 	}
-	toReprocess := models.AnalyticsResult{Units: []models.ReprocessingUnit{}}
+
 	if stack == 0 {
 		close(result)
-		return &toReprocess
+		return &models.AnalyticsResult{Units: []models.ReprocessingUnit{}}
 	}
+	set := util.NewStringSet()
 	for r := range result {
-		toReprocess.Units = append(toReprocess.Units, r.Units...)
+		for i := 0; i < len(r.Units); i++ {
+			key := fmt.Sprintf("%s:%s", r.Units[i].InstanceID, r.Units[i].Branch)
+			if !set.Exist(key) {
+				if r.Units[i].Branch == "master" {
+					//Aplica a execução da mesma instancia para os branches que vieram no dataset
+					for _, branch := range branches.List() {
+						set.Add(fmt.Sprintf("%s:%s", r.Units[i].InstanceID, branch), models.ReprocessingUnit{
+							Branch:     branch,
+							InstanceID: r.Units[i].InstanceID,
+						})
+					}
+				}
+				set.Add(key, r.Units[i])
+			}
+		}
 		stack--
 		if stack == 0 {
 			break
 		}
 	}
 	close(result)
+	toReprocess := models.AnalyticsResult{Units: make([]models.ReprocessingUnit, set.Len())}
+	for i, key := range set.List() {
+		toReprocess.Units[i] = set.Get(key).(models.ReprocessingUnit)
+	}
 	return &toReprocess
 }

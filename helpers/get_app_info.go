@@ -57,6 +57,8 @@ func GetDomainHost(systemID string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	//FIXME
+	//info.Host = "localhost"
 	return fmt.Sprintf("http://%s:%d", info.Host, info.Port), nil
 }
 

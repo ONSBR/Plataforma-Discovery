@@ -30,6 +30,5 @@ func GetEntitiesByInstance(systemID, processInstance string) (models.EntitiesLis
 		log.Error(errJ)
 		return nil, errJ
 	}
-	log.Info("entities from domain: ", len(list))
 	return list, nil
 }
