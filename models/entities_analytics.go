@@ -111,7 +111,7 @@ func (analytic *EntitiesAnalytics) SearchOnPostgres(systemID string, obj map[str
 		}, query, rid, branch, rid)
 		log.Debug("query: ", query, " rid=", rid)
 	}
-	if !set.Exist(branch) {
+	if branch != "master" && !set.Exist(branch) {
 		set.Add(branch)
 	}
 	return set
