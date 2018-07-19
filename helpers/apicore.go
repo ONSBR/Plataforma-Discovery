@@ -10,8 +10,13 @@ import (
 )
 
 type ProcessInstance struct {
-	ID        string `json:"id"`
-	ProcessId string `json:"processId"`
+	ID              string `json:"id"`
+	ProcessID       string `json:"processId"`
+	OriginEventName string `json:"origin_event_name"`
+	Baseline        string `json:"baseline"`
+	Scope           string `json:"scope"`
+	Status          string `json:"status"`
+	StartExecution  string `json:"startExecution"`
 }
 
 func GetFinalizedInstancesAfter(systemID, instanceID string, startedAfter time.Time) ([]*ProcessInstance, error) {

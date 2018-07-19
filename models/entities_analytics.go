@@ -78,15 +78,6 @@ func (analytic *EntitiesAnalytics) AddEntity(entity string) {
 	analytic.entitiesSet.Add(entity)
 }
 
-//GetDataSourceChain get datasource chain from entities
-func (analytic *EntitiesAnalytics) GetDataSourceChain(systemID string) ([]*DataSource, error) {
-	deps, err := helpers.GetProcessesWithDependsOn(systemID, analytic.entitiesSet.List())
-	if err != nil {
-		return nil, err
-	}
-	return NewDataSourceChain(deps), nil
-}
-
 func (analytic *EntitiesAnalytics) MapEntityToQuery(entitiesSummary []*EntitySummary) {
 	for _, en := range entitiesSummary {
 		query := helpers.ParseQuery(en.Query, en.Parameters)
@@ -95,7 +86,7 @@ func (analytic *EntitiesAnalytics) MapEntityToQuery(entitiesSummary []*EntitySum
 			analytic.queryMap[en.EntityName] = make([]string, 0)
 		}
 		if query != "" {
-			query = fmt.Sprintf(`(select rid, branch, meta_instance_id from %s where rid=$1 and %s) union (select rid, branch, meta_instance_id from %s where from_id=$2 and %s)`, en.EntityName, query, en.EntityName, query)
+			query = fmt.Sprintf(`(select rid, branch, meta_instance_id from %s where rid=$1 and branch=$2 and %s) union (select rid, branch, meta_instance_id from %s where from_id=$3 and %s)`, en.EntityName, query, en.EntityName, query)
 			analytic.queryMap[en.EntityName] = append(analytic.queryMap[en.EntityName], query)
 		}
 
@@ -116,9 +107,12 @@ func (analytic *EntitiesAnalytics) SearchOnPostgres(systemID string, obj map[str
 		db.Query(systemID, func(scan db.Scan) {
 			var row PostgresRowData
 			scan(&row.RID, &row.Branch, &row.MetaInstanceID)
-			set.Add(branch, row)
-		}, query, rid, rid)
+			set.Add(row.Branch)
+		}, query, rid, branch, rid)
 		log.Debug("query: ", query, " rid=", rid)
+	}
+	if !set.Exist(branch) {
+		set.Add(branch)
 	}
 	return set
 }
@@ -131,18 +125,23 @@ func (analytic *EntitiesAnalytics) ListEntitiesTypes() []string {
 func RunAnalyticsForInstance(systemID, instanceID string, entities EntitiesList, channel chan *AnalyticsResult, entitiesSummary []*EntitySummary) {
 	analytics := NewEntitiesAnalytics()
 	analytics.MapEntityToQuery(entitiesSummary)
+	finalSet := util.NewStringSet()
+	r := AnalyticsResult{Units: []ReprocessingUnit{}}
 	for _, obj := range entities {
 		set := analytics.SearchOnPostgres(systemID, obj)
 		if set.Len() > 0 {
 			//registros impactados incluindo em branches impactadas
-			r := AnalyticsResult{Units: []ReprocessingUnit{}}
 			for _, branch := range set.List() {
-				r.Units = append(r.Units, ReprocessingUnit{InstanceID: instanceID, Branch: branch})
+				if !finalSet.Exist(branch) {
+					r.Units = append(r.Units, ReprocessingUnit{InstanceID: instanceID, Branch: branch})
+					finalSet.Add(branch)
+				}
 			}
-			log.Debug("Total found: ", len(r.Units))
-			channel <- &r
-			return
 		}
+	}
+	if finalSet.Len() > 0 {
+		channel <- &r
+		return
 	}
 	channel <- &AnalyticsResult{Units: []ReprocessingUnit{}}
 }

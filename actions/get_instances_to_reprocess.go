@@ -36,15 +36,10 @@ func GetInstancesToReprocess(systemID, instanceID string) (*models.AnalyticsResu
 func run(systemID, originInstanceID string, entities models.EntitiesList, event *domain.Event) (*models.AnalyticsResult, error) {
 	analytics := models.NewEntitiesAnalytics()
 	timestamp := util.Timestamp(time.Now())
-	branches := util.NewStringSet()
 	for _, entity := range entities {
 		typ, err := helpers.ExtractFieldFromEntity(entity, "type")
 		if err != nil {
 			return nil, err
-		}
-		branch := entity["branch"].(string)
-		if branch != "master" {
-			branches.Add(branch)
 		}
 		tmp, err := helpers.ExtractModifiedTimestamp(entity)
 		if err == nil && tmp <= timestamp {
@@ -57,28 +52,25 @@ func run(systemID, originInstanceID string, entities models.EntitiesList, event 
 	if err != nil {
 		return nil, err
 	}
+	if len(instancesAfter) == 0 {
+		log.Info("No instances found after ", util.ToISOString(util.TimeFromMilliTimestamp(timestamp)))
+		return &models.AnalyticsResult{Units: []models.ReprocessingUnit{}}, nil
+	}
+	log.Debug("Qtd instances after ", util.ToISOString(util.TimeFromMilliTimestamp(timestamp)), " = ", len(instancesAfter))
 	instancesStr := make([]string, len(instancesAfter))
 	for i, ins := range instancesAfter {
 		instancesStr[i] = ins.ID
+		log.Debug("Instance ID=", ins.ID, " EventName=", ins.OriginEventName, " StartExecution=", ins.StartExecution, " Status=", ins.Status, " Scope=", ins.Scope)
 	}
-	diffInstances := util.NewStringSet()
 	summaries, err := GetSummaryBySystem(systemID, strings.Join(analytics.ListEntitiesTypes(), ","), strings.Join(instancesStr, ","), event.Tag)
 	log.Info(len(summaries))
-	list := make([]*models.InstanceSummary, 0)
-	for _, summary := range summaries {
-		if diffInstances.Exist(summary.IdempotencyKey) {
-			continue
-		}
-		diffInstances.Add(summary.IdempotencyKey)
-		list = append(list, summary)
-	}
 	if err != nil {
 		return nil, err
 	}
-	return dispatchWorker(originInstanceID, entities, list, branches), nil
+	return dispatchWorker(originInstanceID, entities, summaries), nil
 }
 
-func dispatchWorker(originInstanceID string, entities models.EntitiesList, summaries []*models.InstanceSummary, branches *util.StringSet) *models.AnalyticsResult {
+func dispatchWorker(originInstanceID string, entities models.EntitiesList, summaries []*models.InstanceSummary) *models.AnalyticsResult {
 	result := make(chan *models.AnalyticsResult)
 	stack := 0
 	groupedTag := util.NewStringSet()
@@ -91,7 +83,6 @@ func dispatchWorker(originInstanceID string, entities models.EntitiesList, summa
 			continue
 		}
 		groupedTag.Add(summary.Tag)
-		log.Info(summary.Tag)
 		go models.RunAnalyticsForInstance(summary.SystemID, summary.ProcessInstance, entities, result, summary.Entities)
 		stack++
 	}
@@ -100,25 +91,14 @@ func dispatchWorker(originInstanceID string, entities models.EntitiesList, summa
 		close(result)
 		return &models.AnalyticsResult{Units: []models.ReprocessingUnit{}}
 	}
-	set := util.NewStringSet()
-	log.Debug("New branches: ", branches.List())
+	finalList := new(models.AnalyticsResult)
+	finalList.Units = make([]models.ReprocessingUnit, 0)
+	finalSet := util.NewStringSet()
 	for r := range result {
-		for i := 0; i < len(r.Units); i++ {
-			key := fmt.Sprintf("%s:%s", r.Units[i].InstanceID, r.Units[i].Branch)
-			if !set.Exist(key) {
-				if r.Units[i].Branch == "master" {
-					//Aplica a execução da mesma instancia para os branches que vieram no dataset
-					for _, branch := range branches.List() {
-						key = fmt.Sprintf("%s:%s", r.Units[i].InstanceID, branch)
-						if !set.Exist(key) {
-							set.Add(key, models.ReprocessingUnit{
-								Branch:     branch,
-								InstanceID: r.Units[i].InstanceID,
-							})
-						}
-					}
-				}
-				set.Add(key, r.Units[i])
+		for _, un := range r.Units {
+			key := fmt.Sprintf("%s:%s", un.Branch, un.InstanceID)
+			if !finalSet.Exist(key) {
+				finalList.Units = append(finalList.Units, un)
 			}
 		}
 		stack--
@@ -127,9 +107,5 @@ func dispatchWorker(originInstanceID string, entities models.EntitiesList, summa
 		}
 	}
 	close(result)
-	toReprocess := models.AnalyticsResult{Units: make([]models.ReprocessingUnit, set.Len())}
-	for i, key := range set.List() {
-		toReprocess.Units[i] = set.Get(key).(models.ReprocessingUnit)
-	}
-	return &toReprocess
+	return finalList
 }

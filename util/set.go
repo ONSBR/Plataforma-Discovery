@@ -20,12 +20,13 @@ func NewStringSet() *StringSet {
 func (set *StringSet) Add(value string, store ...interface{}) {
 	set.mux.Lock()
 	defer set.mux.Unlock()
-	if len(store) == 0 {
-		set.hashmap[value] = true
-	} else {
-		set.hashmap[value] = store[0]
+	if !set.Exist(value) {
+		if len(store) == 0 {
+			set.hashmap[value] = true
+		} else {
+			set.hashmap[value] = store[0]
+		}
 	}
-
 }
 
 func (set *StringSet) Len() int {
