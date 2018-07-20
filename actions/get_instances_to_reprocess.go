@@ -12,7 +12,6 @@ import (
 	"github.com/ONSBR/Plataforma-Discovery/helpers"
 	"github.com/ONSBR/Plataforma-Discovery/models"
 	"github.com/ONSBR/Plataforma-Discovery/util"
-	"github.com/labstack/gommon/log"
 )
 
 //GetInstancesToReprocess returns all instances to reprocess based on systemID and instanceID
@@ -47,23 +46,18 @@ func run(systemID, originInstanceID string, entities models.EntitiesList, event 
 		}
 		analytics.AddEntity(typ)
 	}
-	log.Debug("Minimum timestamp: ", util.ToISOString(util.TimeFromMilliTimestamp(timestamp)))
 	instancesAfter, err := helpers.GetFinalizedInstancesAfter(systemID, originInstanceID, util.TimeFromMilliTimestamp(timestamp))
 	if err != nil {
 		return nil, err
 	}
 	if len(instancesAfter) == 0 {
-		log.Info("No instances found after ", util.ToISOString(util.TimeFromMilliTimestamp(timestamp)))
 		return &models.AnalyticsResult{Units: []models.ReprocessingUnit{}}, nil
 	}
-	log.Debug("Qtd instances after ", util.ToISOString(util.TimeFromMilliTimestamp(timestamp)), " = ", len(instancesAfter))
 	instancesStr := make([]string, len(instancesAfter))
 	for i, ins := range instancesAfter {
 		instancesStr[i] = ins.ID
-		log.Debug("Instance ID=", ins.ID, " EventName=", ins.OriginEventName, " StartExecution=", ins.StartExecution, " Status=", ins.Status, " Scope=", ins.Scope)
 	}
 	summaries, err := GetSummaryBySystem(systemID, strings.Join(analytics.ListEntitiesTypes(), ","), strings.Join(instancesStr, ","), event.Tag)
-	log.Info(len(summaries))
 	if err != nil {
 		return nil, err
 	}

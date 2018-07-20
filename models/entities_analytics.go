@@ -3,6 +3,7 @@ package models
 import (
 	"fmt"
 
+	"github.com/ONSBR/Plataforma-Deployer/sdk/apicore"
 	"github.com/ONSBR/Plataforma-Discovery/db"
 	"github.com/labstack/gommon/log"
 
@@ -33,6 +34,7 @@ type AnalyticsResult struct {
 type ReprocessingUnit struct {
 	InstanceID string `json:"instanceId"`
 	Branch     string `json:"branch"`
+	Forking    bool   `json:"forking"`
 }
 
 type InstanceSummary struct {
@@ -130,7 +132,7 @@ func (analytic *EntitiesAnalytics) SearchOnPostgres(systemID string, obj map[str
 				set.Add(branch)
 			}
 		}
-		log.Debug("query: ", query, " rid=", rid)
+		//log.Debug("query: ", query, " rid=", rid)
 	}
 	return set
 }
@@ -145,9 +147,21 @@ func RunAnalyticsForInstance(systemID, instanceID string, entities EntitiesList,
 	analytics.MapEntityToQuery(entitiesSummary)
 	finalSet := util.NewStringSet()
 	r := AnalyticsResult{Units: []ReprocessingUnit{}}
+	isForkInstance, err := isFork(instanceID)
+	if err != nil {
+		log.Error(err)
+		channel <- &r
+		return
+	}
 	for _, obj := range entities {
 		set := analytics.SearchOnPostgres(systemID, obj)
 		if set.Len() > 0 {
+			if isForkInstance {
+				log.Info(instanceID, " é uma instancia fork")
+				finalSet.Add("master")
+				r.Units = append(r.Units, ReprocessingUnit{InstanceID: instanceID, Branch: "master", Forking: true})
+				break
+			}
 			//registros impactados incluindo em branches impactadas
 			for _, branch := range set.List() {
 				if !finalSet.Exist(branch) {
@@ -158,8 +172,25 @@ func RunAnalyticsForInstance(systemID, instanceID string, entities EntitiesList,
 		}
 	}
 	if finalSet.Len() > 0 {
+		log.Info("total de reprocessamentos da instancia: ", finalSet.Len())
 		channel <- &r
 		return
 	}
 	channel <- &AnalyticsResult{Units: []ReprocessingUnit{}}
+}
+
+func isFork(instanceID string) (bool, error) {
+	list := make([]map[string]interface{}, 0)
+	err := apicore.FindByID("processInstance", instanceID, &list)
+	if err != nil {
+		return false, err
+	}
+	if len(list) == 0 {
+		return false, fmt.Errorf("instance not found")
+	}
+	isFork, ok := list[0]["isFork"]
+	if ok && isFork != nil && isFork.(bool) {
+		return true, nil
+	}
+	return false, nil
 }

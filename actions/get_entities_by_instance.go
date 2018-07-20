@@ -15,7 +15,6 @@ import (
 func GetEntitiesByInstance(systemID, processInstance string) (models.EntitiesList, error) {
 	list := make(models.EntitiesList, 0)
 	domainHost, err := helpers.GetDomainHost(systemID)
-	log.Info(domainHost)
 	if err != nil {
 		return nil, err
 	}
