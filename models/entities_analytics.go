@@ -22,6 +22,8 @@ type EntitiesAnalytics struct {
 	groupedEntitiesByType map[string]EntitiesList
 
 	queryMap map[string][]string
+
+	queryIDS map[string]*util.StringSet
 }
 
 type AnalyticsResult struct {
@@ -70,6 +72,7 @@ func NewEntitiesAnalytics() *EntitiesAnalytics {
 	analytics.queryTreeSet = util.NewStringTreeSet()
 	analytics.groupedEntitiesByType = make(map[string]EntitiesList)
 	analytics.queryMap = make(map[string][]string)
+	analytics.queryIDS = make(map[string]*util.StringSet)
 	return analytics
 }
 
@@ -86,8 +89,14 @@ func (analytic *EntitiesAnalytics) MapEntityToQuery(entitiesSummary []*EntitySum
 			analytic.queryMap[en.EntityName] = make([]string, 0)
 		}
 		if query != "" {
-			query = fmt.Sprintf(`(select rid, branch, meta_instance_id from %s where rid=$1 and branch=$2 and %s) union (select rid, branch, meta_instance_id from %s where from_id=$3 and %s)`, en.EntityName, query, en.EntityName, query)
+			query = fmt.Sprintf(`(select rid, branch, meta_instance_id from %s where rid=$1 and branch in ($2,'master') and %s) union (select rid, branch, meta_instance_id from %s where from_id=$3 and %s)`, en.EntityName, query, en.EntityName, query)
 			analytic.queryMap[en.EntityName] = append(analytic.queryMap[en.EntityName], query)
+			analytic.queryIDS[query] = util.NewStringSet()
+			for _, id := range en.EntitiesIds {
+				set := analytic.queryIDS[query]
+				set.Add(id.RID)
+			}
+
 		}
 
 	}
@@ -104,15 +113,24 @@ func (analytic *EntitiesAnalytics) SearchOnPostgres(systemID string, obj map[str
 		return set
 	}
 	for _, query := range queries {
+		found := false
 		db.Query(systemID, func(scan db.Scan) {
 			var row PostgresRowData
 			scan(&row.RID, &row.Branch, &row.MetaInstanceID)
-			set.Add(row.Branch)
+			found = true
+			if row.Branch != "master" {
+				set.Add(row.Branch)
+			} else {
+				set.Add(branch)
+			}
 		}, query, rid, branch, rid)
+		if !found {
+			ridSet := analytic.queryIDS[query]
+			if ridSet.Exist(rid) {
+				set.Add(branch)
+			}
+		}
 		log.Debug("query: ", query, " rid=", rid)
-	}
-	if branch != "master" && !set.Exist(branch) {
-		set.Add(branch)
 	}
 	return set
 }
