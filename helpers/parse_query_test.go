@@ -37,5 +37,23 @@ func TestShouldParseSQLQuery(t *testing.T) {
 			parsed := ParseQuery(query, map[string]interface{}{"ids": "1;2;3;4"})
 			So(parsed, ShouldEqual, "id in (1,2,3,4)")
 		})
+
+		Convey("should parse with optional params query", func() {
+			query := "id in ($ids) [and name = :name]"
+			parsed := ParseQuery(query, map[string]interface{}{"ids": "1;2;3;4", "name": "test"})
+			So(parsed, ShouldEqual, "id in (1,2,3,4) and name = 'test'")
+		})
+
+		Convey("should parse with two optional params query", func() {
+			query := "id in ($ids) [and name = :name] [or lastName = :lastName]"
+			parsed := ParseQuery(query, map[string]interface{}{"ids": "1;2;3;4", "name": "test", "lastName": "last"})
+			So(parsed, ShouldEqual, "id in (1,2,3,4) and name = 'test' or lastName = 'last'")
+		})
+
+		Convey("should parse with two optional but just one pass params query", func() {
+			query := "id in ($ids) [and name = :name][or lastName = :lastName]"
+			parsed := ParseQuery(query, map[string]interface{}{"ids": "1;2;3;4", "lastName": "last"})
+			So(parsed, ShouldEqual, "id in (1,2,3,4) or lastName = 'last'")
+		})
 	})
 }

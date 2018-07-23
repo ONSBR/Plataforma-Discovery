@@ -2,8 +2,10 @@ package helpers
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 func ParseQuery(query string, parameters map[string]interface{}) string {
@@ -19,7 +21,7 @@ func ParseQuery(query string, parameters map[string]interface{}) string {
 			query = strings.Replace(query, ":"+prop, strconv.FormatBool(value), -1)
 		}
 	}
-	return query
+	return removeUnsedParams(query)
 }
 
 func compileParams(query string, value, prop string) string {
@@ -43,10 +45,29 @@ func compileParams(query string, value, prop string) string {
 		}
 	}
 
-	return removeUnsedParams(query)
+	return query
 }
+
+var onceCompile sync.Once
+var regex *regexp.Regexp
+var regexOptional *regexp.Regexp
 
 func removeUnsedParams(query string) string {
 	//TODO
-	return query
+	onceCompile.Do(func() {
+		regex, _ = regexp.Compile(`:\w*`)
+		regexOptional, _ = regexp.Compile(`\[(.*?)\]`)
+	})
+	optionalParameters := regexOptional.FindAll([]byte(query), -1)
+	for _, optional := range optionalParameters {
+		value := string(optional)
+		notPopulated := regex.FindAll(optional, -1)
+		if len(notPopulated) > 0 {
+			query = strings.Replace(query, value, "", 1)
+		}
+	}
+	query = strings.Replace(query, "[", "", -1)
+	query = strings.Replace(query, "]", "", -1)
+	removeTrailing := strings.Trim(query, " ")
+	return removeTrailing
 }
