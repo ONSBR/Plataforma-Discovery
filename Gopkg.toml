@@ -38,7 +38,7 @@
   name = "github.com/PMoneda/http"
 
 [[constraint]]
-  branch = "feature/reprocessamento"
+  branch = "master"
   name = "github.com/ONSBR/Plataforma-Deployer"
 
 [[constraint]]

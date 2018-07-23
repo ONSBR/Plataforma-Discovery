@@ -2,28 +2,25 @@
 
 
 [[projects]]
-  branch = "feature/reprocessamento"
+  branch = "master"
   name = "github.com/ONSBR/Plataforma-Deployer"
   packages = [
     "env",
     "sdk/apicore"
   ]
-  revision = "d83ca7d401322df4962c0e6ae27d7436bb9b2a03"
+  revision = "e67f257d2ea6650f7deb7ec0e0fce6a3495b5ee9"
 
 [[projects]]
-  branch = "feature/reprocessamento"
+  branch = "master"
   name = "github.com/ONSBR/Plataforma-EventManager"
-  packages = [
-    "domain",
-    "infra"
-  ]
-  revision = "6e7f22e2ec411babd5cc4a626aefb80cdd4181a8"
+  packages = ["domain"]
+  revision = "511618718072faf90e16b2e060954cb828a73927"
 
 [[projects]]
   branch = "master"
   name = "github.com/ONSBR/Plataforma-Maestro"
   packages = ["sdk/processmemory"]
-  revision = "132464f9a30012696c09950f30c51473aebb5c91"
+  revision = "1a5afc0628176f7df70d094b1611bcc6e2e03958"
 
 [[projects]]
   branch = "master"
@@ -135,17 +132,17 @@
     "acme",
     "acme/autocert"
   ]
-  revision = "a49355c7e3f8fe157a85be2f77e6e269a0f89602"
+  revision = "a2144134853fc9a27a7b1e3eb4f19f1a76df13c9"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/sys"
   packages = ["unix"]
-  revision = "1b2967e3c290b7c545b3db0deeda16e9be4f98a2"
+  revision = "ac767d655b305d4e9612f5f6e33120b9176c4ad4"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "88e4b09be38968b094f52eae7dc0aee3438b8ecf0f40bb3347cc85ebbcdf93c5"
+  inputs-digest = "94abe0ddd92da618fa2414510d442745ad341e22a68ce2c0997ff78faa3bbbac"
   solver-name = "gps-cdcl"
   solver-version = 1
