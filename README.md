@@ -4,8 +4,8 @@ Este componente é responsável por identificar quais intâncias deverão ser re
 ### Atividades
 
 - [x] Instalar Discovery na Plataforma
-- [ ] Conectar o Discovery ao Postgres
+- [x] Conectar o Discovery ao Postgres
 - [x] Pegar a lista de objetos que serão persistidos no domain
 - [x] Pegar o sumário de utilização de entidades por instancias baseado no sistema
-- [ ] Identificar instancias que deverão ser reprocessadas
-- [ ] Executar filtro no Postgres
+- [x] Identificar instancias que deverão ser reprocessadas
+- [x] Executar filtro no Postgres
