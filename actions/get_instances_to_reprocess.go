@@ -53,15 +53,29 @@ func run(systemID, originInstanceID string, entities models.EntitiesList, event 
 	if len(instancesAfter) == 0 {
 		return &models.AnalyticsResult{Units: []models.ReprocessingUnit{}}, nil
 	}
-	instancesStr := make([]string, len(instancesAfter))
-	for i, ins := range instancesAfter {
-		instancesStr[i] = ins.ID
+	openBranches, err := GetAvailableBranches(systemID)
+	if err != nil {
+		return &models.AnalyticsResult{Units: []models.ReprocessingUnit{}}, err
+	}
+	instancesStr := make([]string, 0)
+	for _, ins := range instancesAfter {
+		if openBranches.Exist(ins.Baseline) {
+			instancesStr = append(instancesStr, ins.ID)
+		}
 	}
 	summaries, err := GetSummaryBySystem(systemID, strings.Join(analytics.ListEntitiesTypes(), ","), strings.Join(instancesStr, ","), event.Tag)
 	if err != nil {
 		return nil, err
 	}
-	return dispatchWorker(originInstanceID, entities, summaries), nil
+	instancesToReprocess := dispatchWorker(originInstanceID, entities, summaries)
+	lastFilter := make([]models.ReprocessingUnit, 0)
+	for _, unit := range instancesToReprocess.Units {
+		if openBranches.Exist(unit.Branch) {
+			lastFilter = append(lastFilter, unit)
+		}
+	}
+	instancesToReprocess.Units = lastFilter
+	return instancesToReprocess, nil
 }
 
 func dispatchWorker(originInstanceID string, entities models.EntitiesList, summaries []*models.InstanceSummary) *models.AnalyticsResult {
