@@ -8,7 +8,7 @@
     "env",
     "sdk/apicore"
   ]
-  revision = "e67f257d2ea6650f7deb7ec0e0fce6a3495b5ee9"
+  revision = "3be1a3f6fd74dabe9167170468c81542dade87fc"
 
 [[projects]]
   branch = "master"

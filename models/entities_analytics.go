@@ -107,10 +107,22 @@ func (analytic *EntitiesAnalytics) MapEntityToQuery(entitiesSummary []*EntitySum
 func (analytic *EntitiesAnalytics) SearchOnPostgres(systemID string, obj map[string]interface{}) *util.StringSet {
 	t, _ := helpers.ExtractFieldFromEntity(obj, "type")
 	rid, _ := helpers.ExtractFieldFromEntity(obj, "rid")
-
-	branch := obj["branch"].(string)
-	queries := analytic.queryMap[t]
 	set := util.NewStringSet()
+	branchAttr, ok := obj["branch"]
+	branch := ""
+	if !ok {
+		log.Error("not found branch field on entity ", obj)
+		return set
+	}
+	switch t := branchAttr.(type) {
+	case string:
+		branch = t
+	default:
+		log.Error("branch attribute is not string: ", t)
+		return set
+	}
+	queries := analytic.queryMap[t]
+
 	if rid == "" {
 		return set
 	}
@@ -132,7 +144,7 @@ func (analytic *EntitiesAnalytics) SearchOnPostgres(systemID string, obj map[str
 				set.Add(branch)
 			}
 		}
-		//log.Debug("query: ", query, " rid=", rid)
+		log.Debug("query= ", query, " rid=", rid, " branch=", branch)
 	}
 	return set
 }
