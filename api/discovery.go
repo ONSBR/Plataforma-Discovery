@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/ONSBR/Plataforma-Discovery/actions"
 	"github.com/labstack/echo"
@@ -17,9 +16,9 @@ func discovery(c echo.Context) error {
 		log.Error(err)
 		return err
 	}
-	//log.Info("Total de instancias para serem reprocessadas: ", len(result.Units))
+	log.Info("Total de instancias para serem reprocessadas: ", len(result.Units))
 	d, _ := json.Marshal(result.Units)
-	fmt.Println(string(d))
+	log.Info(string(d))
 	c.JSON(200, result.Units)
 	return nil
 }

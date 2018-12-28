@@ -16,9 +16,9 @@ func init() {
 
 func main() {
 	flag.Parse()
-	log.SetLevel(log.DEBUG)
-	//if local {
-	os.Setenv("PORT", "8090")
-	//}
+	log.SetLevel(log.INFO)
+	if local {
+		os.Setenv("PORT", "8090")
+	}
 	api.InitAPI()
 }
