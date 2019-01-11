@@ -25,7 +25,7 @@ func Query(systemID string, binder func(Scan), query string, args ...interface{}
 		return err
 	}
 	dbinfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		env.Get("POSTGRES_HOST", "localhost"), env.Get("POSTGRES_PORT", "5432"), DB_USER, DB_PASSWORD, dbName)
+		env.Get("POSTGRES_HOST", "localhost"), env.Get("POSTGRES_PORT", "5432"), env.Get("POSTGRES_USER", DB_USER), env.Get("POSTGRES_PASSWORD", DB_PASSWORD), dbName)
 
 	dataConn, err := sql.Open("postgres", dbinfo)
 	if err != nil {
